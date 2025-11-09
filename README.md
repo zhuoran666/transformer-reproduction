@@ -12,9 +12,9 @@
 - **完整的编码器-解码器架构**: 从零实现了编码器和解码器堆栈。
 - **多头自注意力机制**: 手工实现了带有多个并行头的缩放点积注意力机制。
 - **逐位置前馈网络**: 标准的前馈网络（FFN）子层。
-- **残差连接与层归一化**: 正确实现了“Add & Norm”模块，这对于训练深度模型至关重要。
+- **残差连接与层归一化**: 正确实现了“Add & Norm”模块。
 - **可配置的位置编码**:
-    - 经典的 sinusoidal（绝对）位置编码。
+    - 经典的绝对位置编码。
     - T5风格的相对位置编码（RPE）作为备选方案。
 
 ### 训练优化技巧
@@ -24,7 +24,7 @@
 - **自动混合精度 (AMP)**: 使用FP16在现代GPU上加速训练。
 - **`torch.compile()` 支持**: 集成了PyTorch 2.0+的即时（JIT）编译功能以获得进一步的速度提升。
 - **Xavier 初始化**: 改善模型训练初期的稳定性。
-- **标签平滑**: 一种关键的正则化技巧，用于防止模型过拟合。
+- **标签平滑**: 关键的正则化技巧，用于防止模型过拟合。
 
 ### 实验框架
 - **集中的 `run.sh` 脚本**: 通过单一命令轻松运行基线和各种消融实验。
@@ -37,25 +37,23 @@
 ```
 .
 |-- data/
-|   `-- iwslt17_de_en_local/    # 用于存放本地IWSLT2017数据集文件的目录
-|-- runs/
-|   `-- <实验名称>/               # 每个实验的输出（日志、模型、图表）都保存在这里
+|   |-- iwslt17_de_en_local/    # 用于存放本地IWSLT2017数据集文件的目录
+|-- results/
+|   |-- <实验名称>/               # 每个实验的输出（日志、模型、图表）都保存在这里
 |-- src/
 |   |-- dataset.py            # 数据加载、预处理和DataLoader创建
 |   |-- model.py              # 手工实现的Transformer模型代码
 |   |-- train.py              # 主要的训练和验证脚本
-|   `-- evaluate.py           # 用于在测试集上评估已训练模型的脚本
-|-- report.pdf                # 最终的项目报告 (由report.tex编译)
-|-- report.tex                # 报告的LaTeX源码
-`-- run.sh                    # 用于运行所有实验的主脚本
+|   |-- evaluate.py           # 用于在测试集上评估已训练模型的脚本
+|-- run.sh                    # 用于运行所有实验的主脚本
 ```
 
 ## 环境设置与安装
 
 1.  **克隆本仓库**
     ```bash
-    git clone <your-repo-url>
-    cd <your-repo-name>
+    git clone <https://github.com/zhuoran666/transformer-reproduction>
+    cd <https://github.com/zhuoran666/transformer-reproduction>
     ```
 
 2.  **创建 Conda 环境**
@@ -66,7 +64,7 @@
 
 3.  **安装依赖**
     ```bash
-    pip install torch torchtext==0.17.1 spacy tqdm matplotlib
+    pip install requirements.txt
     ```
 
 4.  **下载 SpaCy 模型**
@@ -76,7 +74,7 @@
     ```
 
 5.  **准备数据集**
-    请手动下载 IWSLT2017 DE-EN 数据集，并将其文件放入 `data/iwslt17_de_en_local/` 目录下。代码已配置为读取纯文本格式的 `train.tags.*` 文件进行训练，以及XML格式的 `*.xml` 文件进行验证和测试。
+    请手动下载 IWSLT2017 DE-EN 数据集，并将其文件放入 `data/iwslt17_de_en/` 目录下。代码已配置为读取纯文本格式的 `train.tags.*` 文件进行训练，以及XML格式的 `*.xml` 文件进行验证和测试。
 
 ## 如何运行
 
@@ -114,13 +112,13 @@
 
 通过系统性的消融研究，我们发现对于IWSLT2017数据集，一个**更小、更浅的模型**其性能显著优于标准的6层“Transformer Base”架构。在该数据集上的主要挑战并非模型容量不足，而是深度模型带来的**优化困难和严重的过拟合**问题。
 
-我们性能最佳的模型（`new_baseline`）是一个**3层的Transformer**，其 `d_model=512`。
+我们性能最佳的模型（`baseline`）是一个**3层的Transformer**，其 `d_model=512`。
 
 ### 核心性能指标
 
 | 实验名称                   | 配置                                | BLEU  | 核心洞见                                                 |
 | ------------------------------ | ----------------------------------- | :---: | -------------------------------------------------------- |
-| **新基线 (New Baseline)**        | **3层, d_model=512**                | **14.78** | **性能最强，平衡性好。**                                 |
+| **基线 (Baseline)**        | **3层, d_model=512**                | **14.78** | **性能最强，平衡性好。**                                 |
 | 原始基线 (作参考)        | 6层, d_model=512                    | 1.65  | 存在严重的过拟合和优化问题。                             |
 | 挑战：深度正则化模型 | 6层 + 强正则化                    | 0.52  | 强正则化未能拯救深度模型。                               |
 | 消融: 更窄的模型           | 3层, d_model=256                    | 14.28 | 性能略低，但速度更快、效率更高。                         |
@@ -135,4 +133,12 @@
 3.  **正则化是一场平衡艺术**: 对于一个尺寸已经合适的模型（如3层基线），施加过度的正则化（如高Dropout率）会导致欠拟合，从而降低性能。
 
 ## 参考文献
-[1] Ashish Vaswani, et al. "Attention Is All You Need." _Advances in Neural Information Processing Systems (NIPS)_, 2017.
+[1] Ashish Vaswani, et al. "Attention Is All You Need." _Advances in Neural Information Processing Systems (NIPS), 2017.
+[2] Ilya Sutskever, Oriol Vinyals, and Quoc V. Le. Sequence to sequence learning withneural networks. In Advances in Neural Information Processing Systems (NIPS), 27,2014.
+[3] Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio. Neural machine trans-lation by jointly learning to align and translate. In International Conference onLearning Representations (ICLR), 2015.
+[4] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of deep bidirectional transformers for language understanding. In NorthAmerican Chapter of the Association for Computational Linguistics (NAACL), 2019.
+[5] Alec Radford, Karthik Narasimhan, Tim Salimans, and Ilya Sutskever. Improving language understanding by generative pre-training. OpenAI Blog, 2018.
+[6] Mauro Cettolo, Christian Girardi, and Marcello Federico. WIT3: Web inventory of transcribed and translated talks. In European Association for Machine Translation(EAMT), 2012.
+[7] Jimmy Lei Ba, Jamie Ryan Kiros, and Geoffrey E. Hinton. Layer normalization.arXiv preprint arXiv:1607.06450, 2016.
+[8] Ilya Loshchilov and Frank Hutter. Decoupled weight decay regularization. In Inter-national Conference on Learning Representations (ICLR), 2019.
+[9] Colin Raffel, Noam Shazeer, Adam Roberts, Katherine Lee, Sharan Narang, Michael Matena, Yanqi Zhou, Wei Li, and Peter J. Liu. Exploring the limits of transfer learn-ing with a unified text-to-text transformer. Journal of Machine Learning Research(JMLR), 21(140):1-67, 2020.
